@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no"
+    />
+    <title>Raspadinha Digital</title>
+    <style>
+      body {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background-color: #ffd700;
+        font-family: Arial, sans-serif;
+        margin: 0;
+        text-align: center;
+      }
+
+      .container {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        align-items: center;
+      }
+
+      .scratch-card {
+        position: relative;
+        width: 220px;
+        height: 100px;
+        background-color: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        transition: transform 0.2s ease-in-out;
+      }
+
+      .scratch-card:hover {
+        transform: scale(1.05);
+      }
+
+      canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      .message {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 22px;
+        font-weight: bold;
+        color: #333;
+        text-align: center;
+      }
+
+      #submitButton {
+        margin-top: 20px;
+        padding: 12px 24px;
+        font-size: 18px;
+        font-weight: bold;
+        background-color: #333;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.3s ease;
+      }
+
+      #submitButton:hover {
+        background-color: #555;
+      }
+
+      .alert {
+        background-color: #ff3333;
+        color: white;
+        padding: 10px;
+        border-radius: 5px;
+        font-size: 16px;
+        font-weight: bold;
+        margin-bottom: 15px;
+        width: 90%;
+        max-width: 400px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="alert">
+      ⚠️ Tentar atualizar para trocar de prêmio não irá funcionar!
+    </div>
+    <div id="titulo">
+      <h1>🎉 Raspadinha Riachão 🎉</h1>
+      <p>Raspe <strong>1 das 3 opções</strong> e veja seu prêmio!</p>
+    </div>
+    <div class="container" id="scratchContainer"></div>
+    <button id="submitButton" onclick="enviarResultado()">
+      Enviar Resultado
+    </button>
+
+    <script>
+      const prizes = [
+        "🚗 Carro",
+        "🏍️ Moto",
+        "📺 TV",
+        "📱 Celular",
+        "✈️ Viagem",
+        "💵 R$100",
+        "💸 R$50",
+        "📟 Tablet",
+        "🎮 Console",
+        "😢 Nada",
+      ];
+      const selectedPrizes = prizes.sort(() => 0.5 - Math.random()).slice(0, 3);
+      const scratchContainer = document.getElementById("scratchContainer");
+      let selectedCard = localStorage.getItem("raspadinhaEscolhida") || false;
+      let premioSelecionado = localStorage.getItem("premioSelecionado") || "";
+
+      // Impede recarregamento antes de enviar o resultado
+      window.addEventListener("beforeunload", (event) => {
+        if (selectedCard && !localStorage.getItem("resultadoEnviado")) {
+          event.preventDefault();
+          event.returnValue =
+            "Você já raspou! Envie o resultado antes de sair.";
+        }
+      });
+
+      function enviarResultado() {
+        if (!premioSelecionado) {
+          alert("Você precisa raspar uma opção primeiro!");
+        } else {
+          const mensagem = encodeURIComponent(
+            `🎊 Acabei de jogar a Raspadinha Riachão e ganhei: ${premioSelecionado}!`
+          );
+          const numeroWhatsApp = "5584996132907";
+          const linkWhatsApp = `https://wa.me/${numeroWhatsApp}?text=${mensagem}`;
+
+          localStorage.setItem("resultadoEnviado", true);
+          localStorage.removeItem("raspadinhaEscolhida");
+          localStorage.removeItem("premioSelecionado");
+
+          window.open(linkWhatsApp, "_blank");
+          location.reload();
+        }
+      }
+
+      selectedPrizes.forEach((prize) => {
+        const card = document.createElement("div");
+        card.classList.add("scratch-card");
+        card.innerHTML = `<div class='message'>${prize}</div><canvas></canvas>`;
+        scratchContainer.appendChild(card);
+
+        const canvas = card.querySelector("canvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = card.clientWidth;
+        canvas.height = card.clientHeight;
+        ctx.fillStyle = "gray";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        let isDrawing = false;
+
+        function clearArea(x, y) {
+          ctx.globalCompositeOperation = "destination-out";
+          ctx.beginPath();
+          ctx.arc(x, y, 20, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        function getTouchPos(e) {
+          const rect = canvas.getBoundingClientRect();
+          return {
+            x: e.touches[0].clientX - rect.left,
+            y: e.touches[0].clientY - rect.top,
+          };
+        }
+
+        function enableScratch() {
+          // Verifica se o prêmio já foi selecionado
+          if (premioSelecionado) {
+            alert(`Você já raspou e seu prêmio foi: ${premioSelecionado}, envie o resultado para reivindicar o seu prêmio!`);
+            return;
+          }
+
+          if (selectedCard) return;
+          selectedCard = true;
+          premioSelecionado = prize;
+
+          localStorage.setItem("raspadinhaEscolhida", true);
+          localStorage.setItem("premioSelecionado", prize);
+
+          canvas.addEventListener("mousedown", () => (isDrawing = true));
+          canvas.addEventListener("mouseup", () => (isDrawing = false));
+          canvas.addEventListener("mousemove", (e) => {
+            if (!isDrawing) return;
+            const rect = canvas.getBoundingClientRect();
+            clearArea(e.clientX - rect.left, e.clientY - rect.top);
+          });
+
+          canvas.addEventListener("touchstart", (e) => {
+            e.preventDefault();
+            isDrawing = true;
+          });
+          canvas.addEventListener("touchend", () => (isDrawing = false));
+          canvas.addEventListener("touchmove", (e) => {
+            e.preventDefault();
+            if (!isDrawing) return;
+            const pos = getTouchPos(e);
+            clearArea(pos.x, pos.y);
+          });
+        }
+
+        card.addEventListener("click", enableScratch);
+      });
+    </script>
+  </body>
+</html>
