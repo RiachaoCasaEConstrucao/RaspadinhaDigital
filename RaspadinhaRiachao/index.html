@@ -97,6 +97,17 @@
         max-height: 100%;
         object-fit: contain;
       }
+
+      .instrucoes {
+        background-color: #fff8dc;
+        border: 2px dashed #333;
+        padding: 10px 15px;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        font-weight: bold;
+        max-width: 400px;
+        font-size: 15px;
+      }
     </style>
   </head>
   <body>
@@ -106,6 +117,12 @@
     <div id="titulo">
       <h1>🎉 Raspadinha Riachão 🎉</h1>
       <p>Raspe <strong>1 das 3 opções</strong> e veja seu prêmio!</p>
+    </div>
+
+    <!-- AVISO ADICIONAL -->
+    <div class="instrucoes">
+      🖱️ <strong>Clique primeiro em uma das três raspadinhas</strong> para
+      ativá-la, e depois use o mouse ou o dedo para raspar!
     </div>
     <div class="container" id="scratchContainer"></div>
     <button id="submitButton" onclick="enviarResultado()">
