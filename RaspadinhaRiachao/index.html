@@ -91,6 +91,12 @@
         width: 90%;
         max-width: 400px;
       }
+
+      .prize-img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+      }
     </style>
   </head>
   <body>
@@ -108,17 +114,11 @@
 
     <script>
       const prizes = [
-        "🚗 Carro",
-        "🏍️ Moto",
-        "📺 TV",
-        "📱 Celular",
-        "✈️ Viagem",
-        "💵 R$100",
-        "💸 R$50",
-        "📟 Tablet",
-        "🎮 Console",
-        "😢 Nada",
+        { nome: "🚗 Carro", imagem: "imgs/carro.png" },
+        { nome: "🏍️ Moto", imagem: "imgs/moto.png" },
+        { nome: "📺 TV", imagem: "imgs/tv.png" },
       ];
+
       const selectedPrizes = prizes.sort(() => 0.5 - Math.random()).slice(0, 3);
       const scratchContainer = document.getElementById("scratchContainer");
       let selectedCard = localStorage.getItem("raspadinhaEscolhida") || false;
@@ -155,7 +155,13 @@
       selectedPrizes.forEach((prize) => {
         const card = document.createElement("div");
         card.classList.add("scratch-card");
-        card.innerHTML = `<div class='message'>${prize}</div><canvas></canvas>`;
+        card.innerHTML = `
+        <div class='message'>
+        <img src='${prize.imagem}' alt='${prize.nome}' class='prize-img'>
+        </div>
+        <canvas></canvas>
+        `;
+
         scratchContainer.appendChild(card);
 
         const canvas = card.querySelector("canvas");
@@ -185,16 +191,18 @@
         function enableScratch() {
           // Verifica se o prêmio já foi selecionado
           if (premioSelecionado) {
-            alert(`Você já raspou e seu prêmio foi: ${premioSelecionado}, envie o resultado para reivindicar o seu prêmio!`);
+            alert(
+              `Você já raspou e seu prêmio foi: ${premioSelecionado}, envie o resultado para reivindicar o seu prêmio!`
+            );
             return;
           }
 
           if (selectedCard) return;
           selectedCard = true;
-          premioSelecionado = prize;
+          premioSelecionado = prize.nome;
 
           localStorage.setItem("raspadinhaEscolhida", true);
-          localStorage.setItem("premioSelecionado", prize);
+          localStorage.setItem("premioSelecionado", prize.nome);
 
           canvas.addEventListener("mousedown", () => (isDrawing = true));
           canvas.addEventListener("mouseup", () => (isDrawing = false));
