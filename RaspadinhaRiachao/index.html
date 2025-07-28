@@ -13,10 +13,11 @@
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        height: 100vh;
+        min-height: 100vh;
         background-color: #ffd700;
         font-family: Arial, sans-serif;
         margin: 0;
+        padding: 20px;
         text-align: center;
       }
 
@@ -25,12 +26,14 @@
         flex-direction: column;
         gap: 15px;
         align-items: center;
+        width: 100%;
+        max-width: 500px;
       }
 
       .scratch-card {
         position: relative;
-        width: 220px;
-        height: 100px;
+        width: 100%;
+        height: 150px;
         background-color: white;
         border-radius: 12px;
         overflow: hidden;
@@ -39,7 +42,7 @@
       }
 
       .scratch-card:hover {
-        transform: scale(1.05);
+        transform: scale(1.02);
       }
 
       canvas {
@@ -55,12 +58,20 @@
         width: 100%;
         height: 100%;
         display: flex;
+        flex-direction: column;
         justify-content: center;
         align-items: center;
         font-size: 22px;
         font-weight: bold;
         color: #333;
         text-align: center;
+      }
+
+      .message img {
+        width: 80px;
+        height: 80px;
+        object-fit: contain;
+        margin-bottom: 10px;
       }
 
       #submitButton {
@@ -80,6 +91,11 @@
         background-color: #555;
       }
 
+      #submitButton:disabled {
+        background-color: #999;
+        cursor: not-allowed;
+      }
+
       .alert {
         background-color: #ff3333;
         color: white;
@@ -90,6 +106,28 @@
         margin-bottom: 15px;
         width: 90%;
         max-width: 400px;
+      }
+
+      .scratch-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #d3d3d3 25%, #b8b8b8 25%, #b8b8b8 50%, #d3d3d3 50%, #d3d3d3 75%, #b8b8b8 75%);
+        background-size: 20px 20px;
+        z-index: 1;
+      }
+
+      .scratch-text {
+        position: absolute;
+        bottom: 10px;
+        left: 0;
+        width: 100%;
+        text-align: center;
+        color: #333;
+        font-size: 14px;
+        z-index: 2;
       }
     </style>
   </head>
@@ -102,29 +140,30 @@
       <p>Raspe <strong>1 das 3 opções</strong> e veja seu prêmio!</p>
     </div>
     <div class="container" id="scratchContainer"></div>
-    <button id="submitButton" onclick="enviarResultado()">
+    <button id="submitButton" onclick="enviarResultado()" disabled>
       Enviar Resultado
     </button>
 
     <script>
-      const prizes = [
-        "🚗 Carro",
-        "🏍️ Moto",
-        "📺 TV",
-        "📱 Celular",
-        "✈️ Viagem",
-        "💵 R$100",
-        "💸 R$50",
-        "📟 Tablet",
-        "🎮 Console",
-        "😢 Nada",
-      ];
+      // Mapeamento de prêmios para imagens
+      const prizeImages = {
+        "🚗 Carro": "imgs/carro.png",
+        "🏍️ Moto": "imgs/moto.png",
+        "📺 TV": "imgs/tv.png",
+      };
+
+      const prizes = Object.keys(prizeImages);
       const selectedPrizes = prizes.sort(() => 0.5 - Math.random()).slice(0, 3);
       const scratchContainer = document.getElementById("scratchContainer");
+      const submitButton = document.getElementById("submitButton");
+      
       let selectedCard = localStorage.getItem("raspadinhaEscolhida") || false;
       let premioSelecionado = localStorage.getItem("premioSelecionado") || "";
 
-      // Impede recarregamento antes de enviar o resultado
+      if (premioSelecionado) {
+        submitButton.disabled = false;
+      }
+
       window.addEventListener("beforeunload", (event) => {
         if (selectedCard && !localStorage.getItem("resultadoEnviado")) {
           event.preventDefault();
@@ -155,23 +194,85 @@
       selectedPrizes.forEach((prize) => {
         const card = document.createElement("div");
         card.classList.add("scratch-card");
-        card.innerHTML = `<div class='message'>${prize}</div><canvas></canvas>`;
+        
+        // Cria a estrutura da carta com overlay e imagem do prêmio
+        card.innerHTML = `
+          <div class="message">
+            <img src="${prizeImages[prize]}" alt="${prize}">
+            <span>${prize}</span>
+          </div>
+          <div class="scratch-overlay"></div>
+          <canvas></canvas>
+          <div class="scratch-text">Raspe aqui para revelar</div>
+        `;
+        
         scratchContainer.appendChild(card);
 
         const canvas = card.querySelector("canvas");
         const ctx = canvas.getContext("2d");
         canvas.width = card.clientWidth;
         canvas.height = card.clientHeight;
-        ctx.fillStyle = "gray";
+        
+        // Preenche o canvas com a cor de raspadinha
+        ctx.fillStyle = "#c0c0c0";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Adiciona textura
+        ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
+        for (let i = 0; i < 50; i++) {
+          const x = Math.random() * canvas.width;
+          const y = Math.random() * canvas.height;
+          const radius = Math.random() * 5 + 2;
+          ctx.beginPath();
+          ctx.arc(x, y, radius, 0, Math.PI * 2);
+          ctx.fill();
+        }
 
         let isDrawing = false;
+        let totalScratched = 0;
+        const scratchThreshold = 0.3; // 30% raspado para revelar
 
-        function clearArea(x, y) {
+        function clearArea(x, y, radius = 25) {
           ctx.globalCompositeOperation = "destination-out";
           ctx.beginPath();
-          ctx.arc(x, y, 20, 0, Math.PI * 2);
+          ctx.arc(x, y, radius, 0, Math.PI * 2);
           ctx.fill();
+          
+          checkScratchedArea();
+        }
+
+        function checkScratchedArea() {
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const pixels = imageData.data;
+          let transparentPixels = 0;
+          
+          for (let i = 3; i < pixels.length; i += 4) {
+            if (pixels[i] === 0) {
+              transparentPixels++;
+            }
+          }
+          
+          const scratchedRatio = transparentPixels / (canvas.width * canvas.height);
+          
+          if (scratchedRatio >= scratchThreshold && !premioSelecionado) {
+            revealPrize(prize, card);
+          }
+        }
+
+        function revealPrize(prize, card) {
+          premioSelecionado = prize;
+          localStorage.setItem("raspadinhaEscolhida", true);
+          localStorage.setItem("premioSelecionado", prize);
+          
+          // Remove o overlay e o texto
+          card.querySelector(".scratch-overlay").style.display = "none";
+          card.querySelector(".scratch-text").style.display = "none";
+          
+          // Habilita o botão
+          submitButton.disabled = false;
+          
+          // Mostra mensagem
+          alert(`Parabéns! Você ganhou: ${prize}`);
         }
 
         function getTouchPos(e) {
@@ -183,7 +284,6 @@
         }
 
         function enableScratch() {
-          // Verifica se o prêmio já foi selecionado
           if (premioSelecionado) {
             alert(`Você já raspou e seu prêmio foi: ${premioSelecionado}, envie o resultado para reivindicar o seu prêmio!`);
             return;
@@ -191,29 +291,37 @@
 
           if (selectedCard) return;
           selectedCard = true;
-          premioSelecionado = prize;
 
-          localStorage.setItem("raspadinhaEscolhida", true);
-          localStorage.setItem("premioSelecionado", prize);
-
-          canvas.addEventListener("mousedown", () => (isDrawing = true));
+          // Eventos de mouse
+          canvas.addEventListener("mousedown", (e) => {
+            isDrawing = true;
+            const rect = canvas.getBoundingClientRect();
+            clearArea(e.clientX - rect.left, e.clientY - rect.top, 25);
+          });
+          
           canvas.addEventListener("mouseup", () => (isDrawing = false));
+          
           canvas.addEventListener("mousemove", (e) => {
             if (!isDrawing) return;
             const rect = canvas.getBoundingClientRect();
-            clearArea(e.clientX - rect.left, e.clientY - rect.top);
+            clearArea(e.clientX - rect.left, e.clientY - rect.top, 25);
           });
 
+          // Eventos de touch
           canvas.addEventListener("touchstart", (e) => {
             e.preventDefault();
             isDrawing = true;
+            const pos = getTouchPos(e);
+            clearArea(pos.x, pos.y, 30);
           });
+          
           canvas.addEventListener("touchend", () => (isDrawing = false));
+          
           canvas.addEventListener("touchmove", (e) => {
             e.preventDefault();
             if (!isDrawing) return;
             const pos = getTouchPos(e);
-            clearArea(pos.x, pos.y);
+            clearArea(pos.x, pos.y, 30);
           });
         }
 
